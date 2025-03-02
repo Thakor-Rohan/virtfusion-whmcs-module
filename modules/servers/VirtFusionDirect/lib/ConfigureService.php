@@ -43,7 +43,6 @@ class ConfigureService extends Module
         return null;
     }
 
-
     /**
      * @param int $productId
      * @return int|null
@@ -126,16 +125,33 @@ class ConfigureService extends Module
     {
         $request = $this->initCurl($this->cp['token']);
 
-        // Generate a random 8 character hostname
-        $hostname = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 8);
+        // Attempt to get a real random hostname from an API.
+        $hostname = null;
+        $apiUrl = 'https://random-word-api.herokuapp.com/word?number=1';
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($ch);
+        if (curl_errno($ch)) {
+            // Fallback to a random 8-character string on error.
+            $hostname = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 8);
+        } else {
+            $data = json_decode($response, true);
+            if (is_array($data) && !empty($data[0])) {
+                $hostname = $data[0];
+            } else {
+                $hostname = substr(str_shuffle('abcdefghijklmnopqrstuvwxyz'), 0, 8);
+            }
+        }
+        curl_close($ch);
 
         $inputData = [
             "operatingSystemId" => $vars['customfields']['Initial Operating System'],
-            "name" => $hostname,
-            "sshKeys" => [
+            "name"              => $hostname,
+            "sshKeys"           => [
                 $vars['customfields']['Initial SSH Key']
             ],
-            'email' => true
+            'email'             => true
         ];
 
         if (empty($vars['customfields']['Initial SSH Key'])) {
